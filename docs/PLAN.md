@@ -100,7 +100,7 @@ Require login before board access with simple session handling.
 - [x] User must log in to see and use board.
 
 ### Approval checkpoint
-- [ ] User approves fake-auth UX before database persistence.
+- [x] User approves fake-auth UX before database persistence.
 
 ---
 
@@ -136,20 +136,20 @@ DB location:
 - `backend/data/app.db`
 
 ### Checklist
-- [ ] Write schema doc in `docs/` (tables, constraints, migration/init approach).
-- [ ] Define board JSON shape and version field.
-- [ ] Define initialization flow when DB does not exist.
+- [x] Write schema doc in `docs/` (tables, constraints, migration/init approach).
+- [x] Define board JSON shape and version field.
+- [x] Define initialization flow when DB does not exist.
 
 ### Tests
-- [ ] DB file auto-created when missing.
-- [ ] Seed user/board creation works.
-- [ ] Read/write of `state_json` round-trip works with no data loss.
+- [x] DB file auto-created when missing.
+- [x] Seed user/board creation works.
+- [x] Read/write of `state_json` round-trip works with no data loss.
 
 ### Success criteria
-- [ ] Schema approved by user before API implementation.
+- [x] Schema approved by user before API implementation.
 
 ### Approval checkpoint
-- [ ] User approves proposed schema and storage approach.
+- [x] User approves proposed schema and storage approach.
 
 ---
 
@@ -159,24 +159,24 @@ DB location:
 Expose authenticated API routes to fetch and modify board state.
 
 ### Checklist
-- [ ] Implement DB init on startup if missing.
-- [ ] Add API routes (tentative):
-	- [ ] `GET /api/board`
-	- [ ] `PUT /api/board`
-	- [ ] `POST /api/board/cards`
-	- [ ] `PATCH /api/board/cards/{cardId}`
-	- [ ] `DELETE /api/board/cards/{cardId}`
-	- [ ] `PATCH /api/board/columns/{columnId}`
-- [ ] Add input validation and minimal error handling.
-- [ ] Keep logic simple and predictable.
+- [x] Implement DB init on startup if missing.
+- [x] Add API routes (tentative):
+	- [x] `GET /api/board`
+	- [x] `PUT /api/board`
+	- [x] `POST /api/board/cards`
+	- [x] `PATCH /api/board/cards/{cardId}`
+	- [x] `DELETE /api/board/cards/{cardId}`
+	- [x] `PATCH /api/board/columns/{columnId}`
+- [x] Add input validation and minimal error handling.
+- [x] Keep logic simple and predictable.
 
 ### Tests
-- [ ] Backend unit tests for service/repository methods.
-- [ ] API tests for auth-required behavior.
-- [ ] API tests for board updates and persistence.
+- [x] Backend unit tests for service/repository methods.
+- [x] API tests for auth-required behavior.
+- [x] API tests for board updates and persistence.
 
 ### Success criteria
-- [ ] Board changes persist in SQLite and survive restart.
+- [x] Board changes persist in SQLite and survive restart.
 
 ---
 
