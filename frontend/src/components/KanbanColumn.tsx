@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import clsx from "clsx";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -8,8 +9,8 @@ import { NewCardForm } from "@/components/NewCardForm";
 type KanbanColumnProps = {
   column: Column;
   cards: Card[];
-  onRename: (columnId: string, title: string) => void;
-  onAddCard: (columnId: string, title: string, details: string) => void;
+  onRename: (columnId: string, title: string) => Promise<void>;
+  onAddCard: (columnId: string, title: string, details: string) => Promise<void>;
   onDeleteCard: (columnId: string, cardId: string) => void;
 };
 
@@ -21,6 +22,47 @@ export const KanbanColumn = ({
   onDeleteCard,
 }: KanbanColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const [draftTitle, setDraftTitle] = useState(column.title);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const shouldSkipCommitRef = useRef(false);
+
+  useEffect(() => {
+    setDraftTitle(column.title);
+  }, [column.title]);
+
+  const commitTitle = async () => {
+    if (shouldSkipCommitRef.current) {
+      shouldSkipCommitRef.current = false;
+      setDraftTitle(column.title);
+      return;
+    }
+
+    const title = draftTitle.trim();
+    if (!title || title === column.title) {
+      setDraftTitle(column.title);
+      return;
+    }
+
+    setIsRenaming(true);
+    try {
+      await onRename(column.id, title);
+    } catch {
+      setDraftTitle(column.title);
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
+  const handleTitleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.currentTarget.blur();
+    }
+    if (event.key === "Escape") {
+      shouldSkipCommitRef.current = true;
+      setDraftTitle(column.title);
+      event.currentTarget.blur();
+    }
+  };
 
   return (
     <section
@@ -40,10 +82,13 @@ export const KanbanColumn = ({
             </span>
           </div>
           <input
-            value={column.title}
-            onChange={(event) => onRename(column.id, event.target.value)}
+            value={draftTitle}
+            onChange={(event) => setDraftTitle(event.target.value)}
+            onBlur={() => void commitTitle()}
+            onKeyDown={handleTitleKeyDown}
             className="mt-3 w-full bg-transparent font-display text-lg font-semibold text-[var(--navy-dark)] outline-none"
             aria-label="Column title"
+            aria-busy={isRenaming}
           />
         </div>
       </div>

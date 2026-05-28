@@ -26,6 +26,13 @@ def _db_path() -> Path | None:
     return Path(raw)
 
 
+def _static_dir() -> Path:
+    raw = os.getenv("PM_STATIC_DIR")
+    if not raw:
+        return Path(__file__).resolve().parent / "static"
+    return Path(raw).resolve()
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize_database(_db_path())
@@ -34,7 +41,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Project Management MVP API", lifespan=lifespan)
 
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+STATIC_DIR = _static_dir()
 INDEX_FILE = STATIC_DIR / "index.html"
 SESSION_COOKIE_NAME = "pm_session"
 active_sessions: dict[str, str] = {}

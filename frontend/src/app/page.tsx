@@ -3,11 +3,7 @@
 import { useEffect, useState } from "react";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { LoginForm } from "@/components/LoginForm";
-
-type SessionResponse = {
-  authenticated: boolean;
-  username: string | null;
-};
+import { ApiError, getSession, login, logout } from "@/lib/api";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
@@ -19,16 +15,7 @@ export default function Home() {
     setErrorMessage(null);
 
     try {
-      const response = await fetch("/api/auth/session", {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Unable to check session");
-      }
-
-      const data = (await response.json()) as SessionResponse;
+      const data = await getSession();
       setIsAuthenticated(Boolean(data.authenticated));
     } catch {
       setIsAuthenticated(false);
@@ -45,30 +32,25 @@ export default function Home() {
   const handleLogin = async (username: string, password: string) => {
     setErrorMessage(null);
 
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({ username, password }),
-    });
-
-    if (!response.ok) {
-      setErrorMessage("Invalid credentials. Use user / password.");
-      return;
+    try {
+      await login(username, password);
+      setIsAuthenticated(true);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        setErrorMessage("Invalid credentials. Use user / password.");
+        return;
+      }
+      setErrorMessage("Could not reach authentication service.");
     }
-
-    setIsAuthenticated(true);
   };
 
   const handleLogout = async () => {
     setErrorMessage(null);
-    await fetch("/api/auth/logout", {
-      method: "POST",
-      credentials: "include",
-    });
-    setIsAuthenticated(false);
+    try {
+      await logout();
+    } finally {
+      setIsAuthenticated(false);
+    }
   };
 
   if (isLoading) {

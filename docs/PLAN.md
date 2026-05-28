@@ -186,18 +186,18 @@ Expose authenticated API routes to fetch and modify board state.
 Replace in-memory board state with backend-backed persisted state.
 
 ### Checklist
-- [ ] Add frontend API client utilities.
-- [ ] Load board from backend after login/session check.
-- [ ] Persist edits (rename, move, add, delete) through API.
-- [ ] Add lightweight loading/error UI states.
+- [x] Add frontend API client utilities.
+- [x] Load board from backend after login/session check.
+- [x] Persist edits (rename, move, add, delete) through API.
+- [x] Add lightweight loading/error UI states.
 
 ### Tests
-- [ ] Unit tests for frontend data layer (if extracted).
-- [ ] Integration tests for load + mutate flows.
-- [ ] E2E: change board, refresh, verify persistence.
+- [x] Unit tests for frontend data layer (if extracted).
+- [x] Integration tests for load + mutate flows.
+- [x] E2E: change board, refresh, verify persistence.
 
 ### Success criteria
-- [ ] UI behavior remains smooth and data persists across reload.
+- [x] UI behavior remains smooth and data persists across reload.
 
 ### Approval checkpoint
 - [ ] User validates persisted Kanban UX.

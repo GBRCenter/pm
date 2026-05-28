@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -13,10 +13,43 @@ import {
 } from "@dnd-kit/core";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
-import { createId, initialData, moveCard, type BoardData } from "@/lib/kanban";
+import {
+  createCard as createCardRequest,
+  deleteCard as deleteCardRequest,
+  fetchBoard,
+  renameColumn as renameColumnRequest,
+  updateCard,
+} from "@/lib/api";
+import { moveCard, type BoardData, type Column } from "@/lib/kanban";
+
+const getCardPlacement = (columns: Column[], cardId: string) => {
+  const column = columns.find((candidate) => candidate.cardIds.includes(cardId));
+  if (!column) {
+    return null;
+  }
+
+  return {
+    columnId: column.id,
+    position: column.cardIds.indexOf(cardId),
+  };
+};
+
+const removeCardFromBoard = (board: BoardData, cardId: string): BoardData => ({
+  ...board,
+  cards: Object.fromEntries(
+    Object.entries(board.cards).filter(([id]) => id !== cardId)
+  ),
+  columns: board.columns.map((column) => ({
+    ...column,
+    cardIds: column.cardIds.filter((id) => id !== cardId),
+  })),
+});
 
 export const KanbanBoard = () => {
-  const [board, setBoard] = useState<BoardData>(() => initialData);
+  const [board, setBoard] = useState<BoardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -25,7 +58,25 @@ export const KanbanBoard = () => {
     })
   );
 
-  const cardsById = useMemo(() => board.cards, [board.cards]);
+  const cardsById = useMemo(() => board?.cards ?? {}, [board?.cards]);
+
+  const loadBoard = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      setBoard(await fetchBoard());
+    } catch {
+      setBoard(null);
+      setErrorMessage("Could not load the board.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadBoard();
+  }, [loadBoard]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(event.active.id as string);
@@ -35,61 +86,134 @@ export const KanbanBoard = () => {
     const { active, over } = event;
     setActiveCardId(null);
 
-    if (!over || active.id === over.id) {
+    if (!board || !over || active.id === over.id) {
       return;
     }
 
-    setBoard((prev) => ({
-      ...prev,
-      columns: moveCard(prev.columns, active.id as string, over.id as string),
-    }));
+    const cardId = active.id as string;
+    const nextColumns = moveCard(board.columns, cardId, over.id as string);
+    if (nextColumns === board.columns) {
+      return;
+    }
+
+    const placement = getCardPlacement(nextColumns, cardId);
+    if (!placement) {
+      return;
+    }
+
+    const previousBoard = board;
+    setBoard({ ...board, columns: nextColumns });
+    setIsSaving(true);
+    setErrorMessage(null);
+
+    void updateCard(cardId, {
+      targetColumnId: placement.columnId,
+      position: placement.position,
+    })
+      .then(setBoard)
+      .catch(() => {
+        setBoard(previousBoard);
+        setErrorMessage("Could not move the card.");
+      })
+      .finally(() => setIsSaving(false));
   };
 
-  const handleRenameColumn = (columnId: string, title: string) => {
-    setBoard((prev) => ({
-      ...prev,
-      columns: prev.columns.map((column) =>
-        column.id === columnId ? { ...column, title } : column
+  const handleRenameColumn = async (columnId: string, title: string) => {
+    if (!board) {
+      return;
+    }
+
+    const cleanTitle = title.trim();
+    const previousBoard = board;
+    const nextBoard = {
+      ...board,
+      columns: board.columns.map((column) =>
+        column.id === columnId ? { ...column, title: cleanTitle } : column
       ),
-    }));
+    };
+
+    setBoard(nextBoard);
+    setIsSaving(true);
+    setErrorMessage(null);
+
+    try {
+      setBoard(await renameColumnRequest(columnId, cleanTitle));
+    } catch (error) {
+      setBoard(previousBoard);
+      setErrorMessage("Could not rename the column.");
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleAddCard = (columnId: string, title: string, details: string) => {
-    const id = createId("card");
-    setBoard((prev) => ({
-      ...prev,
-      cards: {
-        ...prev.cards,
-        [id]: { id, title, details: details || "No details yet." },
-      },
-      columns: prev.columns.map((column) =>
-        column.id === columnId
-          ? { ...column, cardIds: [...column.cardIds, id] }
-          : column
-      ),
-    }));
+  const handleAddCard = async (
+    columnId: string,
+    title: string,
+    details: string
+  ) => {
+    setIsSaving(true);
+    setErrorMessage(null);
+
+    try {
+      setBoard(await createCardRequest({ columnId, title, details }));
+    } catch (error) {
+      setErrorMessage("Could not add the card.");
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDeleteCard = (columnId: string, cardId: string) => {
-    setBoard((prev) => {
-      return {
-        ...prev,
-        cards: Object.fromEntries(
-          Object.entries(prev.cards).filter(([id]) => id !== cardId)
-        ),
-        columns: prev.columns.map((column) =>
-          column.id === columnId
-            ? {
-                ...column,
-                cardIds: column.cardIds.filter((id) => id !== cardId),
-              }
-            : column
-        ),
-      };
-    });
+  const handleDeleteCard = (_columnId: string, cardId: string) => {
+    if (!board) {
+      return;
+    }
+
+    const previousBoard = board;
+    setBoard(removeCardFromBoard(board, cardId));
+    setIsSaving(true);
+    setErrorMessage(null);
+
+    void deleteCardRequest(cardId)
+      .then(setBoard)
+      .catch(() => {
+        setBoard(previousBoard);
+        setErrorMessage("Could not delete the card.");
+      })
+      .finally(() => setIsSaving(false));
   };
 
   const activeCard = activeCardId ? cardsById[activeCardId] : null;
+
+  if (isLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-6 py-12">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
+          Loading board...
+        </p>
+      </main>
+    );
+  }
+
+  if (!board) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-6 py-12">
+        <section className="w-full max-w-md rounded-[24px] border border-[var(--stroke)] bg-white p-6 text-center shadow-[var(--shadow)]">
+          <p className="text-sm font-semibold text-[#b42318]" role="alert">
+            {errorMessage ?? "Board unavailable."}
+          </p>
+          <button
+            type="button"
+            onClick={() => void loadBoard()}
+            className="mt-4 rounded-full bg-[var(--secondary-purple)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:brightness-110"
+          >
+            Retry
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <div className="relative overflow-hidden">
@@ -130,6 +254,21 @@ export const KanbanBoard = () => {
                 {column.title}
               </div>
             ))}
+          </div>
+          <div className="min-h-5">
+            {isSaving ? (
+              <p
+                className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]"
+                role="status"
+              >
+                Saving...
+              </p>
+            ) : null}
+            {errorMessage ? (
+              <p className="text-sm font-medium text-[#b42318]" role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
           </div>
         </header>
 

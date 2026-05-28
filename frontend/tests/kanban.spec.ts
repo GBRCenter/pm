@@ -31,6 +31,22 @@ test("adds a card to a column", async ({ page }) => {
   await expect(firstColumn.getByText("Playwright card")).toBeVisible();
 });
 
+test("persists a new card after refresh", async ({ page }) => {
+  await login(page);
+  const cardTitle = `Persisted card ${Date.now()}`;
+  const firstColumn = page.locator('[data-testid^="column-"]').first();
+
+  await firstColumn.getByRole("button", { name: /add a card/i }).click();
+  await firstColumn.getByPlaceholder("Card title").fill(cardTitle);
+  await firstColumn.getByPlaceholder("Details").fill("Stored in SQLite.");
+  await firstColumn.getByRole("button", { name: /add card/i }).click();
+  await expect(firstColumn.getByText(cardTitle)).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Kanban Studio" })).toBeVisible();
+  await expect(page.getByText(cardTitle)).toBeVisible();
+});
+
 test("moves a card between columns", async ({ page }) => {
   await login(page);
   const card = page.getByTestId("card-card-1");

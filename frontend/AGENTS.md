@@ -16,14 +16,15 @@ This document describes the current state of the frontend in `frontend/`.
 ## Current app behavior
 
 - Route `/` renders `KanbanBoard` from `src/components/KanbanBoard.tsx`.
-- In-memory Kanban board only (no backend persistence yet).
-- Board has 5 fixed columns seeded from `src/lib/kanban.ts`.
+- Login is required before board access.
+- The board loads from the FastAPI backend via `/api/board`.
+- Board changes persist to SQLite through backend API routes.
+- Board has 5 fixed columns seeded by the backend for the demo user.
 - Features currently implemented:
   - Rename columns
   - Add cards
   - Delete cards
   - Drag and drop cards within/between columns
-- No authentication yet.
 - No AI chat UI yet.
 
 ## Key files
@@ -44,8 +45,10 @@ This document describes the current state of the frontend in `frontend/`.
   - Drag overlay card preview.
 - `src/components/NewCardForm.tsx`
   - Inline form to add cards.
+- `src/lib/api.ts`
+  - Typed frontend client for auth and board API calls.
 - `src/lib/kanban.ts`
-  - Types, seeded data, card movement logic, ID utility.
+  - Types, seeded test data, and card movement logic.
 
 ## Tests currently present
 
@@ -66,5 +69,5 @@ This document describes the current state of the frontend in `frontend/`.
 
 ## Notes for upcoming integration
 
-- Frontend state is local and should later be replaced with API-backed persistence.
-- Existing tests should be adapted incrementally as auth and backend integration are introduced.
+- AI chat is not implemented yet.
+- E2E tests run against FastAPI serving the static Next.js export.

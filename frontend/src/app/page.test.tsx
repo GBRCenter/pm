@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Home from "@/app/page";
+import { initialData } from "@/lib/kanban";
 
 const originalFetch = global.fetch;
 
@@ -19,6 +20,10 @@ describe("Home auth flow", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ authenticated: true, username: "user" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => initialData,
       });
 
     global.fetch = fetchMock as unknown as typeof fetch;
@@ -44,6 +49,7 @@ describe("Home auth flow", () => {
       })
       .mockResolvedValueOnce({
         ok: false,
+        status: 401,
         json: async () => ({ detail: "Invalid credentials" }),
       });
 
