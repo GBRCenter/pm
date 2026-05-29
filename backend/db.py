@@ -74,6 +74,12 @@ class UserRecord:
     username: str
 
 
+@dataclass(frozen=True)
+class ChatMessageRecord:
+    role: str
+    content: str
+
+
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -222,3 +228,62 @@ def save_board_for_username(
             (json.dumps(board_state), now, str(user_row["id"])),
         )
         return result.rowcount > 0
+
+
+def get_recent_chat_messages_for_username(
+    username: str,
+    limit: int = 10,
+    db_path: Path | None = None,
+) -> list[ChatMessageRecord]:
+    with _connect(db_path) as connection:
+        rows = connection.execute(
+            (
+                "SELECT m.role, m.content "
+                "FROM chat_messages m "
+                "JOIN users u ON u.id = m.user_id "
+                "WHERE u.username = ? "
+                "ORDER BY m.created_at DESC "
+                "LIMIT ?"
+            ),
+            (username, limit),
+        ).fetchall()
+
+    return [
+        ChatMessageRecord(role=str(row["role"]), content=str(row["content"]))
+        for row in reversed(rows)
+    ]
+
+
+def save_board_and_chat_messages_for_username(
+    username: str,
+    board_state: dict[str, Any],
+    messages: list[tuple[str, str]],
+    db_path: Path | None = None,
+) -> bool:
+    with _connect(db_path) as connection:
+        user_row = connection.execute(
+            "SELECT id FROM users WHERE username = ?",
+            (username,),
+        ).fetchone()
+        if not user_row:
+            return False
+
+        user_id = str(user_row["id"])
+        now = _now_iso()
+        result = connection.execute(
+            "UPDATE boards SET state_json = ?, updated_at = ? WHERE user_id = ?",
+            (json.dumps(board_state), now, user_id),
+        )
+        if result.rowcount == 0:
+            return False
+
+        for role, content in messages:
+            connection.execute(
+                (
+                    "INSERT INTO chat_messages (id, user_id, role, content, created_at) "
+                    "VALUES (?, ?, ?, ?, ?)"
+                ),
+                (_new_id("msg"), user_id, role, content, _now_iso()),
+            )
+
+        return True

@@ -5,7 +5,12 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 import pytest
 
+from ai import AiSmokeResult
+from ai import OpenRouterConfigurationError
+from ai import parse_board_response
+from db import get_recent_chat_messages_for_username
 from db import initialize_database
+import main
 from main import app
 
 
@@ -102,3 +107,152 @@ def test_rename_column(client: TestClient) -> None:
 
     backlog_col = next(col for col in response.json()["columns"] if col["id"] == "col-backlog")
     assert backlog_col["title"] == "Ideas"
+
+
+def test_ai_smoke_test_requires_auth(client: TestClient) -> None:
+    response = client.post("/api/ai/smoke-test")
+    assert response.status_code == 401
+
+
+def test_ai_smoke_test_returns_model_and_answer(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        main,
+        "run_smoke_test",
+        lambda: AiSmokeResult(model="openai/gpt-oss-120b", answer="4"),
+    )
+    _login(client)
+
+    response = client.post("/api/ai/smoke-test")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "model": "openai/gpt-oss-120b",
+        "prompt": "2+2",
+        "answer": "4",
+        "ok": True,
+    }
+
+
+def test_ai_smoke_test_reports_missing_key(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_smoke_test() -> AiSmokeResult:
+        raise OpenRouterConfigurationError("OPENROUTER_API_KEY is not configured")
+
+    monkeypatch.setattr(main, "run_smoke_test", fail_smoke_test)
+    _login(client)
+
+    response = client.post("/api/ai/smoke-test")
+
+    assert response.status_code == 503
+
+
+def test_ai_chat_requires_auth(client: TestClient) -> None:
+    response = client.post("/api/ai/chat", json={"message": "Add a card"})
+    assert response.status_code == 401
+
+
+def test_ai_chat_persists_no_op_chat_messages(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        main,
+        "run_board_chat",
+        lambda *_args, **_kwargs: parse_board_response(
+            '{"assistant_message": "No changes needed.", "operations": []}'
+        ),
+    )
+    _login(client)
+
+    response = client.post("/api/ai/chat", json={"message": "What is next?"})
+
+    assert response.status_code == 200
+    assert response.json()["assistant_message"] == "No changes needed."
+    assert response.json()["operations"] == []
+
+    messages = get_recent_chat_messages_for_username("user", db_path=main._db_path())
+    assert [(message.role, message.content) for message in messages] == [
+        ("user", "What is next?"),
+        ("assistant", "No changes needed."),
+    ]
+
+
+def test_ai_chat_applies_and_persists_multiple_operations(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        main,
+        "run_board_chat",
+        lambda *_args, **_kwargs: parse_board_response(
+            """
+            {
+              "assistant_message": "Created a card and renamed the Done column.",
+              "operations": [
+                {
+                  "type": "create_card",
+                  "column_id": "col-backlog",
+                  "card_id": "card-ai-api",
+                  "title": "AI API card",
+                  "details": "Created in integration test"
+                },
+                {
+                  "type": "rename_column",
+                  "column_id": "col-done",
+                  "new_title": "Complete"
+                }
+              ]
+            }
+            """
+        ),
+    )
+    _login(client)
+
+    response = client.post("/api/ai/chat", json={"message": "Create a card"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["board"]["cards"]["card-ai-api"]["title"] == "AI API card"
+
+    refreshed = client.get("/api/board")
+    done_column = next(
+        column for column in refreshed.json()["columns"] if column["id"] == "col-done"
+    )
+    assert refreshed.json()["cards"]["card-ai-api"]["details"] == "Created in integration test"
+    assert done_column["title"] == "Complete"
+
+
+def test_ai_chat_rejects_invalid_operations_without_persisting_messages(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        main,
+        "run_board_chat",
+        lambda *_args, **_kwargs: parse_board_response(
+            """
+            {
+              "assistant_message": "Invalid operation.",
+              "operations": [
+                {
+                  "type": "move_card",
+                  "card_id": "card-1",
+                  "target_column_id": "missing-column"
+                }
+              ]
+            }
+            """
+        ),
+    )
+    _login(client)
+
+    response = client.post("/api/ai/chat", json={"message": "Move a card"})
+
+    assert response.status_code == 400
+    messages = get_recent_chat_messages_for_username("user", db_path=main._db_path())
+    assert messages == []

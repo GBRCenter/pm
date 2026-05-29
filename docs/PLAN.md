@@ -210,17 +210,17 @@ Replace in-memory board state with backend-backed persisted state.
 Establish backend AI call capability and verify with deterministic smoke test.
 
 ### Checklist
-- [ ] Add OpenRouter client configuration in backend.
-- [ ] Read `OPENROUTER_API_KEY` from root `.env` (in container env).
-- [ ] Set model to `openai/gpt-oss-120b`.
-- [ ] Add internal service method or test route for connectivity check.
+- [x] Add OpenRouter client configuration in backend.
+- [x] Read `OPENROUTER_API_KEY` from root `.env` (in container env).
+- [x] Set model to `openai/gpt-oss-120b`.
+- [x] Add internal service method or test route for connectivity check.
 
 ### Tests
-- [ ] Execute backend test call with prompt `2+2`.
-- [ ] Verify non-error response and expected numerical result.
+- [x] Execute backend test call with prompt `2+2`.
+- [x] Verify non-error response and expected numerical result.
 
 ### Success criteria
-- [ ] AI call is reliable and logs are sufficient for troubleshooting.
+- [x] AI call is reliable and logs are sufficient for troubleshooting.
 
 ---
 
@@ -255,19 +255,19 @@ Notes:
 - Backend validates and safely applies operations.
 
 ### Checklist
-- [ ] Define strict response schema and validation.
-- [ ] Build AI prompt contract (board JSON + conversation context).
-- [ ] Apply validated operations transactionally.
-- [ ] Persist assistant/user messages as needed.
+- [x] Define strict response schema and validation.
+- [x] Build AI prompt contract (board JSON + conversation context).
+- [x] Apply validated operations transactionally.
+- [x] Persist assistant/user messages as needed.
 
 ### Tests
-- [ ] Unit tests for operation validator.
-- [ ] Unit tests for operation applier (all operation types).
-- [ ] Integration tests for no-op and multi-op responses.
-- [ ] Failure-path tests for malformed AI output.
+- [x] Unit tests for operation validator.
+- [x] Unit tests for operation applier (all operation types).
+- [x] Integration tests for no-op and multi-op responses.
+- [x] Failure-path tests for malformed AI output.
 
 ### Success criteria
-- [ ] AI responses are deterministic in shape and safe to apply.
+- [x] AI responses are deterministic in shape and safe to apply.
 
 ### Approval checkpoint
 - [ ] User approves structured output schema before UI chat integration.

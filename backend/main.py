@@ -6,8 +6,17 @@ from pathlib import Path
 import secrets
 from typing import Any
 
+from ai import OpenRouterConfigurationError
+from ai import OpenRouterResponseError
+from ai import AiResponseValidationError
+from ai import run_board_chat
+from ai import run_smoke_test
+from board_ops import BoardOperationError
+from board_ops import apply_operations
 from db import get_board_for_username
+from db import get_recent_chat_messages_for_username
 from db import initialize_database
+from db import save_board_and_chat_messages_for_username
 from db import save_board_for_username
 from db import verify_credentials
 from fastapi import FastAPI
@@ -69,6 +78,10 @@ class CardUpdateRequest(BaseModel):
 
 class ColumnUpdateRequest(BaseModel):
     title: str = Field(min_length=1)
+
+
+class AiChatRequest(BaseModel):
+    message: str = Field(min_length=1)
 
 
 def _resolve_static_path(relative_path: str) -> Path:
@@ -169,6 +182,73 @@ def _save_board(username: str, board: dict[str, Any]) -> None:
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/api/ai/smoke-test")
+def ai_smoke_test(request: Request) -> dict[str, str | bool]:
+    _require_authenticated_username(request)
+
+    try:
+        result = run_smoke_test()
+    except OpenRouterConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except OpenRouterResponseError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    return {
+        "model": result.model,
+        "prompt": "2+2",
+        "answer": result.answer,
+        "ok": result.answer.strip().rstrip(".") == "4",
+    }
+
+
+@app.post("/api/ai/chat")
+def ai_chat(request: Request, payload: AiChatRequest) -> dict[str, Any]:
+    username = _require_authenticated_username(request)
+    user_message = payload.message.strip()
+    if not user_message:
+        raise HTTPException(status_code=400, detail="Message is required")
+
+    board = _load_board(username)
+    chat_history = [
+        {"role": message.role, "content": message.content}
+        for message in get_recent_chat_messages_for_username(username, db_path=_db_path())
+    ]
+
+    try:
+        ai_response = run_board_chat(user_message, board, chat_history)
+        next_board = apply_operations(board, ai_response.operations)
+    except OpenRouterConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (OpenRouterResponseError, AiResponseValidationError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except BoardOperationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if not _validate_board_state_shape(next_board):
+        raise HTTPException(status_code=502, detail="AI operations produced invalid board")
+
+    saved = save_board_and_chat_messages_for_username(
+        username,
+        next_board,
+        [
+            ("user", user_message),
+            ("assistant", ai_response.assistant_message),
+        ],
+        _db_path(),
+    )
+    if not saved:
+        raise HTTPException(status_code=404, detail="Board not found")
+
+    return {
+        "assistant_message": ai_response.assistant_message,
+        "operations": [
+            operation.model_dump(exclude_none=True)
+            for operation in ai_response.operations
+        ],
+        "board": next_board,
+    }
 
 
 @app.get("/api/auth/session")
