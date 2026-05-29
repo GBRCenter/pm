@@ -47,6 +47,36 @@ test("persists a new card after refresh", async ({ page }) => {
   await expect(page.getByText(cardTitle)).toBeVisible();
 });
 
+test("moves a card into an emptied column", async ({ page }) => {
+  await login(page);
+  const card = page.getByTestId("card-card-1");
+  const targetColumn = page.getByTestId("column-col-discovery");
+
+  await targetColumn
+    .locator('button[aria-label="Delete Prototype analytics view"]')
+    .click();
+  await expect(targetColumn.getByTestId("card-card-3")).not.toBeVisible();
+
+  const cardBox = await card.boundingBox();
+  const columnBox = await targetColumn.boundingBox();
+  if (!cardBox || !columnBox) {
+    throw new Error("Unable to resolve drag coordinates.");
+  }
+
+  await page.mouse.move(
+    cardBox.x + cardBox.width / 2,
+    cardBox.y + cardBox.height / 2
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    columnBox.x + columnBox.width / 2,
+    columnBox.y + columnBox.height / 2,
+    { steps: 12 }
+  );
+  await page.mouse.up();
+  await expect(targetColumn.getByTestId("card-card-1")).toBeVisible();
+});
+
 test("moves a card between columns", async ({ page }) => {
   await login(page);
   const card = page.getByTestId("card-card-1");

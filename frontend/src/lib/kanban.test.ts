@@ -22,4 +22,18 @@ describe("moveCard", () => {
     expect(result[0].cardIds).toEqual(["card-2"]);
     expect(result[1].cardIds).toEqual(["card-3", "card-1"]);
   });
+
+  it("moves cards into an empty column", () => {
+    const result = moveCard(
+      [
+        { id: "col-a", title: "A", cardIds: ["card-1", "card-2"] },
+        { id: "col-b", title: "B", cardIds: [] },
+      ],
+      "card-1",
+      "col-b"
+    );
+
+    expect(result[0].cardIds).toEqual(["card-2"]);
+    expect(result[1].cardIds).toEqual(["card-1"]);
+  });
 });

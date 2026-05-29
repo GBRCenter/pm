@@ -5,9 +5,11 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  pointerWithin,
   useSensor,
   useSensors,
   closestCorners,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -59,6 +61,24 @@ export const KanbanBoard = () => {
   );
 
   const cardsById = useMemo(() => board?.cards ?? {}, [board?.cards]);
+
+  const collisionDetection = useCallback<CollisionDetection>(
+    (args) => {
+      const pointerCollisions = pointerWithin(args);
+      const emptyColumnCollision = pointerCollisions.find((collision) =>
+        board?.columns.some(
+          (column) => column.id === collision.id && column.cardIds.length === 0
+        )
+      );
+
+      if (emptyColumnCollision) {
+        return [emptyColumnCollision];
+      }
+
+      return closestCorners(args);
+    },
+    [board?.columns]
+  );
 
   const loadBoard = useCallback(async () => {
     setIsLoading(true);
@@ -274,7 +294,7 @@ export const KanbanBoard = () => {
 
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={collisionDetection}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
