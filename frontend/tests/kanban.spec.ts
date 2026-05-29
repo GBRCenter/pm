@@ -1,4 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { initialData, type BoardData } from "../src/lib/kanban";
+
+const cloneBoard = (board: BoardData = initialData): BoardData =>
+  JSON.parse(JSON.stringify(board)) as BoardData;
 
 const login = async (page: import("@playwright/test").Page) => {
   await page.goto("/");
@@ -99,6 +103,93 @@ test("moves a card between columns", async ({ page }) => {
   );
   await page.mouse.up();
   await expect(targetColumn.getByTestId("card-card-1")).toBeVisible();
+});
+
+test("updates the board from an AI chat response", async ({ page }) => {
+  const aiCardTitle = `AI e2e card ${Date.now()}`;
+  const aiBoard = cloneBoard();
+  aiBoard.cards["card-ai-e2e"] = {
+    id: "card-ai-e2e",
+    title: aiCardTitle,
+    details: "Edited by mocked AI.",
+  };
+  aiBoard.columns[3].cardIds.push("card-ai-e2e");
+
+  await page.route("**/api/ai/chat", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON()).toEqual({
+      message: `Create, edit, and move ${aiCardTitle}`,
+    });
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        assistant_message: "I created, edited, and moved the card.",
+        operations: [
+          {
+            type: "create_card",
+            card_id: "card-ai-e2e",
+            column_id: "col-backlog",
+            title: aiCardTitle,
+            details: "Created by mocked AI.",
+          },
+          {
+            type: "update_card",
+            card_id: "card-ai-e2e",
+            details: "Edited by mocked AI.",
+          },
+          {
+            type: "move_card",
+            card_id: "card-ai-e2e",
+            target_column_id: "col-review",
+          },
+        ],
+        board: aiBoard,
+      }),
+    });
+  });
+
+  await login(page);
+  await page.getByLabel("Message AI").fill(`Create, edit, and move ${aiCardTitle}`);
+  await page.getByRole("button", { name: /send/i }).click();
+
+  const reviewColumn = page.getByTestId("column-col-review");
+  await expect(reviewColumn.getByText(aiCardTitle)).toBeVisible();
+  await expect(reviewColumn.getByText("Edited by mocked AI.")).toBeVisible();
+  await expect(page.getByText("I created, edited, and moved the card.")).toBeVisible();
+});
+
+test("keeps the board unchanged when AI returns no operations", async ({ page }) => {
+  const board = cloneBoard();
+
+  await page.route("**/api/board", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(board),
+    });
+  });
+  await page.route("**/api/ai/chat", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        assistant_message: "No changes needed.",
+        operations: [],
+        board,
+      }),
+    });
+  });
+
+  await login(page);
+  await expect(page.locator('[data-testid^="card-"]')).toHaveCount(8);
+
+  await page.getByLabel("Message AI").fill("Summarize the board");
+  await page.getByRole("button", { name: /send/i }).click();
+
+  await expect(page.getByText("No changes needed.")).toBeVisible();
+  await expect(page.locator('[data-testid^="card-"]')).toHaveCount(8);
 });
 
 test("can log out", async ({ page }) => {

@@ -25,7 +25,7 @@ This document describes the current state of the frontend in `frontend/`.
   - Add cards
   - Delete cards
   - Drag and drop cards within/between columns
-- No AI chat UI yet.
+  - AI chat sidebar that applies backend-validated board updates
 
 ## Key files
 
@@ -37,6 +37,8 @@ This document describes the current state of the frontend in `frontend/`.
   - Global styles and color tokens matching project palette.
 - `src/components/KanbanBoard.tsx`
   - Main board container and state management.
+- `src/components/AiChatSidebar.tsx`
+  - Sidebar chat UI for `/api/ai/chat` board updates.
 - `src/components/KanbanColumn.tsx`
   - Column rendering, drop zone, title editing, new card form.
 - `src/components/KanbanCard.tsx`

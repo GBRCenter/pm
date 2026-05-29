@@ -110,4 +110,48 @@ describe("KanbanBoard", () => {
       expect(within(column).queryByText("New card")).not.toBeInTheDocument();
     });
   });
+
+  it("refreshes the board after an AI chat update", async () => {
+    const updatedBoard = cloneBoard();
+    updatedBoard.cards["card-ai-board-test"] = {
+      id: "card-ai-board-test",
+      title: "AI board card",
+      details: "Created through chat.",
+    };
+    updatedBoard.columns[0].cardIds.push("card-ai-board-test");
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(mockResponse(cloneBoard()))
+      .mockResolvedValueOnce(
+        mockResponse({
+          assistant_message: "I created AI board card.",
+          operations: [
+            {
+              type: "create_card",
+              card_id: "card-ai-board-test",
+              column_id: "col-backlog",
+              title: "AI board card",
+              details: "Created through chat.",
+            },
+          ],
+          board: updatedBoard,
+        })
+      );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    render(<KanbanBoard />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId(/column-/i)).toHaveLength(5);
+    });
+
+    await userEvent.type(screen.getByLabelText("Message AI"), "Add AI board card");
+    await userEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("AI board card")).toBeInTheDocument();
+    });
+    expect(screen.getByText("I created AI board card.")).toBeInTheDocument();
+  });
 });

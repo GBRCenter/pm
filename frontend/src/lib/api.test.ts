@@ -4,6 +4,7 @@ import {
   fetchBoard,
   getSession,
   renameColumn,
+  sendAiChatMessage,
 } from "@/lib/api";
 import { initialData } from "@/lib/kanban";
 
@@ -96,6 +97,29 @@ describe("api client", () => {
         body: JSON.stringify({ title: "Ideas" }),
         credentials: "include",
         method: "PATCH",
+      })
+    );
+  });
+
+  it("sends AI chat messages through the backend", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockResponse({
+        assistant_message: "Done.",
+        operations: [],
+        board: initialData,
+      })
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const response = await sendAiChatMessage("Create a card");
+
+    expect(response.assistant_message).toBe("Done.");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/ai/chat",
+      expect.objectContaining({
+        body: JSON.stringify({ message: "Create a card" }),
+        credentials: "include",
+        method: "POST",
       })
     );
   });

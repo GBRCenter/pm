@@ -270,7 +270,7 @@ Notes:
 - [x] AI responses are deterministic in shape and safe to apply.
 
 ### Approval checkpoint
-- [ ] User approves structured output schema before UI chat integration.
+- [x] User approves structured output schema before UI chat integration.
 
 ---
 
@@ -280,25 +280,25 @@ Notes:
 Add a clean sidebar chat experience that can update board state via structured AI operations.
 
 ### Checklist
-- [ ] Add sidebar layout and chat panel components.
-- [ ] Add message list, input, submit, and loading states.
-- [ ] Wire chat submission to backend AI endpoint.
-- [ ] Apply board updates from AI response and refresh UI automatically.
-- [ ] Keep design aligned with project color scheme.
+- [x] Add sidebar layout and chat panel components.
+- [x] Add message list, input, submit, and loading states.
+- [x] Wire chat submission to backend AI endpoint.
+- [x] Apply board updates from AI response and refresh UI automatically.
+- [x] Keep design aligned with project color scheme.
 
 ### Tests
-- [ ] Frontend component tests for chat interactions.
-- [ ] E2E test: ask AI to create/move/edit card and verify board updates.
-- [ ] E2E test: AI response with no operations leaves board unchanged.
+- [x] Frontend component tests for chat interactions.
+- [x] E2E test: ask AI to create/move/edit card and verify board updates.
+- [x] E2E test: AI response with no operations leaves board unchanged.
 
 ### Success criteria
-- [ ] User can chat naturally and see board changes reflected immediately.
+- [x] User can chat naturally and see board changes reflected immediately.
 
 ---
 
 ## Execution order and quality gates
 
-- [ ] Complete each part in sequence.
-- [ ] Run relevant tests before moving to next part.
+- [x] Complete each part in sequence.
+- [x] Run relevant tests before moving to next part.
 - [ ] Stop at each approval checkpoint and wait for user sign-off.
 - [ ] Keep implementation concise and root-cause-driven when issues appear.

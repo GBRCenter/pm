@@ -5,6 +5,23 @@ export type SessionResponse = {
   username: string | null;
 };
 
+export type AiOperation = {
+  type: string;
+  card_id?: string;
+  column_id?: string;
+  target_column_id?: string;
+  title?: string;
+  details?: string;
+  position?: number;
+  new_title?: string;
+};
+
+export type AiChatResponse = {
+  assistant_message: string;
+  operations: AiOperation[];
+  board: BoardData;
+};
+
 type JsonRequestInit = Omit<RequestInit, "body"> & {
   body?: unknown;
 };
@@ -139,4 +156,11 @@ export const renameColumn = (columnId: string, title: string) =>
     method: "PATCH",
     headers: jsonHeaders,
     body: { title },
+  });
+
+export const sendAiChatMessage = (message: string) =>
+  requestJson<AiChatResponse>("/api/ai/chat", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: { message },
   });
