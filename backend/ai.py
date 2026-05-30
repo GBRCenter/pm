@@ -18,7 +18,7 @@ from pydantic import model_validator
 OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-120b")
 OPENROUTER_SMOKE_MAX_COMPLETION_TOKENS = 128
-OPENROUTER_BOARD_MAX_COMPLETION_TOKENS = 1400
+OPENROUTER_BOARD_MAX_COMPLETION_TOKENS = 2048
 logger = logging.getLogger(__name__)
 
 
@@ -188,9 +188,20 @@ def run_smoke_test() -> AiSmokeResult:
     )
 
 
+def _strip_markdown_fence(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        first_newline = text.find("\n")
+        if first_newline != -1:
+            text = text[first_newline + 1:]
+    if text.endswith("```"):
+        text = text[: text.rfind("```")].rstrip()
+    return text
+
+
 def parse_board_response(raw_text: str) -> AiBoardResponse:
     try:
-        payload = json.loads(raw_text)
+        payload = json.loads(_strip_markdown_fence(raw_text))
     except json.JSONDecodeError as exc:
         raise AiResponseValidationError("AI response was not valid JSON") from exc
 
