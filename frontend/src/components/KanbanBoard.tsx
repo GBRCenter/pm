@@ -322,7 +322,7 @@ export const KanbanBoard = () => {
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-h-0 flex-1 flex gap-6">
           <DndContext
             sensors={sensors}
             collisionDetection={collisionDetection}
@@ -330,7 +330,7 @@ export const KanbanBoard = () => {
             onDragEnd={handleDragEnd}
             autoScroll={{ threshold: { x: 0, y: 0.2 } }}
           >
-            <div className="h-full overflow-x-auto pb-2">
+            <div className="min-h-0 flex-1 overflow-x-auto pb-2">
             <section className="flex h-full gap-6">
               {board.columns.map((column) => (
                 <KanbanColumn
@@ -355,7 +355,9 @@ export const KanbanBoard = () => {
               ) : null}
             </DragOverlay>
           </DndContext>
-          <AiChatSidebar onBoardUpdated={(nextBoard) => setBoard(nextBoard)} />
+          <div className="w-[360px] shrink-0">
+            <AiChatSidebar onBoardUpdated={(nextBoard) => setBoard(nextBoard)} />
+          </div>
         </div>
       </main>
     </div>

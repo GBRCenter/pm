@@ -27,7 +27,7 @@ export const AiChatSidebar = ({ onBoardUpdated }: AiChatSidebarProps) => {
   const [draftMessage, setDraftMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,8 +46,9 @@ export const AiChatSidebar = ({ onBoardUpdated }: AiChatSidebarProps) => {
   }, []);
 
   useEffect(() => {
-    if (messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView?.({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (container && messages.length > 0) {
+      container.scrollTop = container.scrollHeight;
     }
   }, [messages]);
 
@@ -104,6 +105,7 @@ export const AiChatSidebar = ({ onBoardUpdated }: AiChatSidebarProps) => {
       </div>
 
       <div
+        ref={messagesContainerRef}
         className="mt-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl bg-[var(--surface)] p-3"
         role="log"
         aria-label="AI chat messages"
@@ -136,7 +138,6 @@ export const AiChatSidebar = ({ onBoardUpdated }: AiChatSidebarProps) => {
             Thinking...
           </p>
         ) : null}
-        <div ref={messagesEndRef} />
       </div>
 
       {errorMessage ? (
