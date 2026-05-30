@@ -8,7 +8,7 @@ import {
   pointerWithin,
   useSensor,
   useSensors,
-  closestCorners,
+  rectIntersection,
   type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
@@ -78,7 +78,7 @@ export const KanbanBoard = () => {
         return [emptyColumnCollision];
       }
 
-      return closestCorners(args);
+      return rectIntersection(args);
     },
     [board?.columns]
   );
@@ -303,8 +303,10 @@ export const KanbanBoard = () => {
             collisionDetection={collisionDetection}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            autoScroll={{ threshold: { x: 0, y: 0.2 } }}
           >
-            <section className="grid gap-6 lg:grid-cols-5">
+            <div className="overflow-x-auto pb-2">
+            <section className="flex gap-6">
               {board.columns.map((column) => (
                 <KanbanColumn
                   key={column.id}
@@ -318,9 +320,10 @@ export const KanbanBoard = () => {
                 />
               ))}
             </section>
+            </div>
             <DragOverlay>
               {activeCard ? (
-                <div className="w-[260px]">
+                <div className="w-[268px]">
                   <KanbanCardPreview card={activeCard} />
                 </div>
               ) : null}

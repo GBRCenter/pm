@@ -12,6 +12,7 @@ export default defineConfig({
   use: {
     baseURL,
     trace: "retain-on-failure",
+    viewport: { width: 1600, height: 900 },
   },
   webServer: useExternalServer
     ? undefined

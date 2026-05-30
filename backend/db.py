@@ -143,10 +143,16 @@ def initialize_database(db_path: Path | None = None) -> None:
 
 def _ensure_demo_user(connection: sqlite3.Connection) -> str:
     existing = connection.execute(
-        "SELECT id FROM users WHERE username = ?",
+        "SELECT id, password_hash FROM users WHERE username = ?",
         ("user",),
     ).fetchone()
     if existing:
+        expected_hash = _hash_password("password")
+        if str(existing["password_hash"]) != expected_hash:
+            connection.execute(
+                "UPDATE users SET password_hash = ? WHERE id = ?",
+                (expected_hash, str(existing["id"])),
+            )
         return str(existing["id"])
 
     user_id = _new_id("usr")
