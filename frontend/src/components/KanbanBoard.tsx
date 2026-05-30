@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -23,7 +23,7 @@ import {
   renameColumn as renameColumnRequest,
   updateCard,
 } from "@/lib/api";
-import { moveCard, type BoardData, type Column } from "@/lib/kanban";
+import { moveCard, type BoardData, type Card, type Column } from "@/lib/kanban";
 
 const getCardPlacement = (columns: Column[], cardId: string) => {
   const column = columns.find((candidate) => candidate.cardIds.includes(cardId));
@@ -54,6 +54,8 @@ export const KanbanBoard = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+
+  const preDragBoardRef = useRef<BoardData | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -101,11 +103,15 @@ export const KanbanBoard = () => {
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(event.active.id as string);
+    preDragBoardRef.current = board;
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveCardId(null);
+
+    const preDragBoard = preDragBoardRef.current;
+    preDragBoardRef.current = null;
 
     if (!board || !over || active.id === over.id) {
       return;
@@ -122,7 +128,6 @@ export const KanbanBoard = () => {
       return;
     }
 
-    const previousBoard = board;
     setBoard({ ...board, columns: nextColumns });
     setIsSaving(true);
     setErrorMessage(null);
@@ -133,7 +138,7 @@ export const KanbanBoard = () => {
     })
       .then(setBoard)
       .catch(() => {
-        setBoard(previousBoard);
+        setBoard(preDragBoard);
         setErrorMessage("Could not move the card.");
       })
       .finally(() => setIsSaving(false));
@@ -159,10 +164,9 @@ export const KanbanBoard = () => {
 
     try {
       setBoard(await renameColumnRequest(columnId, cleanTitle));
-    } catch (error) {
+    } catch {
       setBoard(previousBoard);
       setErrorMessage("Could not rename the column.");
-      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -186,7 +190,7 @@ export const KanbanBoard = () => {
     }
   };
 
-  const handleDeleteCard = (_columnId: string, cardId: string) => {
+  const handleDeleteCard = (cardId: string) => {
     if (!board) {
       return;
     }
@@ -305,7 +309,9 @@ export const KanbanBoard = () => {
                 <KanbanColumn
                   key={column.id}
                   column={column}
-                  cards={column.cardIds.map((cardId) => board.cards[cardId])}
+                  cards={column.cardIds
+                    .map((cardId) => board.cards[cardId])
+                    .filter((card): card is Card => card != null)}
                   onRename={handleRenameColumn}
                   onAddCard={handleAddCard}
                   onDeleteCard={handleDeleteCard}

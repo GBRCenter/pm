@@ -11,7 +11,7 @@ type KanbanColumnProps = {
   cards: Card[];
   onRename: (columnId: string, title: string) => Promise<void>;
   onAddCard: (columnId: string, title: string, details: string) => Promise<void>;
-  onDeleteCard: (columnId: string, cardId: string) => void;
+  onDeleteCard: (cardId: string) => void;
 };
 
 export const KanbanColumn = ({
@@ -98,7 +98,7 @@ export const KanbanColumn = ({
             <KanbanCard
               key={card.id}
               card={card}
-              onDelete={(cardId) => onDeleteCard(column.id, cardId)}
+              onDelete={onDeleteCard}
             />
           ))}
         </SortableContext>

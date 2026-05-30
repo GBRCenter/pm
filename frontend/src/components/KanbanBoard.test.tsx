@@ -37,6 +37,7 @@ describe("KanbanBoard", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(mockResponse(cloneBoard()))
+      .mockResolvedValueOnce(mockResponse([]))
       .mockResolvedValueOnce(mockResponse(updatedBoard));
     global.fetch = fetchMock as unknown as typeof fetch;
 
@@ -74,6 +75,7 @@ describe("KanbanBoard", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(mockResponse(cloneBoard()))
+      .mockResolvedValueOnce(mockResponse([]))
       .mockResolvedValueOnce(mockResponse(addedBoard))
       .mockResolvedValueOnce(mockResponse(cloneBoard()));
     global.fetch = fetchMock as unknown as typeof fetch;
@@ -123,6 +125,7 @@ describe("KanbanBoard", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(mockResponse(cloneBoard()))
+      .mockResolvedValueOnce(mockResponse([]))
       .mockResolvedValueOnce(
         mockResponse({
           assistant_message: "I created AI board card.",

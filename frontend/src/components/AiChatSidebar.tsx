@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { ApiError, sendAiChatMessage } from "@/lib/api";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ApiError, getChatHistory, sendAiChatMessage } from "@/lib/api";
 import type { BoardData } from "@/lib/kanban";
 
 type ChatMessage = {
@@ -27,6 +27,29 @@ export const AiChatSidebar = ({ onBoardUpdated }: AiChatSidebarProps) => {
   const [draftMessage, setDraftMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getChatHistory()
+      .then((history) => {
+        if (!cancelled) {
+          setMessages(
+            history.map((m) => ({ id: createMessageId(), role: m.role, content: m.content }))
+          );
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView?.({ behavior: "smooth" });
+    }
+  }, [messages]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -113,6 +136,7 @@ export const AiChatSidebar = ({ onBoardUpdated }: AiChatSidebarProps) => {
             Thinking...
           </p>
         ) : null}
+        <div ref={messagesEndRef} />
       </div>
 
       {errorMessage ? (

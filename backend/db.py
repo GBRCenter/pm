@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -80,6 +81,10 @@ class ChatMessageRecord:
     content: str
 
 
+def _hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -147,7 +152,7 @@ def _ensure_demo_user(connection: sqlite3.Connection) -> str:
     user_id = _new_id("usr")
     connection.execute(
         "INSERT INTO users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)",
-        (user_id, "user", "password", _now_iso()),
+        (user_id, "user", _hash_password("password"), _now_iso()),
     )
     return user_id
 
@@ -190,7 +195,7 @@ def verify_credentials(username: str, password: str, db_path: Path | None = None
         ).fetchone()
         if not row:
             return False
-        return str(row["password_hash"]) == password
+        return str(row["password_hash"]) == _hash_password(password)
 
 
 def get_board_for_username(username: str, db_path: Path | None = None) -> dict[str, Any] | None:

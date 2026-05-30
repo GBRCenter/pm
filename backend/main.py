@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import os
 from pathlib import Path
 import secrets
+import time
 from typing import Any
 
 from ai import OpenRouterConfigurationError
@@ -28,7 +29,7 @@ from pydantic import BaseModel
 from pydantic import Field
 
 
-def _db_path() -> Path | None:
+def _resolve_db_path() -> Path | None:
     raw = os.getenv("PM_DB_PATH")
     if not raw:
         return None
@@ -42,9 +43,12 @@ def _static_dir() -> Path:
     return Path(raw).resolve()
 
 
+DB_PATH = _resolve_db_path()
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    initialize_database(_db_path())
+    initialize_database(DB_PATH)
     yield
 
 
@@ -53,7 +57,8 @@ app = FastAPI(title="Project Management MVP API", lifespan=lifespan)
 STATIC_DIR = _static_dir()
 INDEX_FILE = STATIC_DIR / "index.html"
 SESSION_COOKIE_NAME = "pm_session"
-active_sessions: dict[str, str] = {}
+SESSION_TTL_SECONDS = 86_400  # 24 hours
+active_sessions: dict[str, tuple[str, float]] = {}
 
 
 class LoginRequest(BaseModel):
@@ -96,7 +101,14 @@ def _get_authenticated_username(request: Request) -> str | None:
     session_token = request.cookies.get(SESSION_COOKIE_NAME)
     if not session_token:
         return None
-    return active_sessions.get(session_token)
+    entry = active_sessions.get(session_token)
+    if not entry:
+        return None
+    username, created_at = entry
+    if time.time() - created_at > SESSION_TTL_SECONDS:
+        active_sessions.pop(session_token, None)
+        return None
+    return username
 
 
 def _require_authenticated_username(request: Request) -> str:
@@ -163,7 +175,7 @@ def _find_column_for_card(board: dict[str, Any], card_id: str) -> dict[str, Any]
 
 
 def _load_board(username: str) -> dict[str, Any]:
-    board = get_board_for_username(username, _db_path())
+    board = get_board_for_username(username, DB_PATH)
     if not board:
         raise HTTPException(status_code=404, detail="Board not found")
     if not _validate_board_state_shape(board):
@@ -174,7 +186,7 @@ def _load_board(username: str) -> dict[str, Any]:
 def _save_board(username: str, board: dict[str, Any]) -> None:
     if not _validate_board_state_shape(board):
         raise HTTPException(status_code=400, detail="Invalid board payload")
-    saved = save_board_for_username(username, board, _db_path())
+    saved = save_board_for_username(username, board, DB_PATH)
     if not saved:
         raise HTTPException(status_code=404, detail="Board not found")
 
@@ -213,7 +225,7 @@ def ai_chat(request: Request, payload: AiChatRequest) -> dict[str, Any]:
     board = _load_board(username)
     chat_history = [
         {"role": message.role, "content": message.content}
-        for message in get_recent_chat_messages_for_username(username, db_path=_db_path())
+        for message in get_recent_chat_messages_for_username(username, db_path=DB_PATH)
     ]
 
     try:
@@ -236,7 +248,7 @@ def ai_chat(request: Request, payload: AiChatRequest) -> dict[str, Any]:
             ("user", user_message),
             ("assistant", ai_response.assistant_message),
         ],
-        _db_path(),
+        DB_PATH,
     )
     if not saved:
         raise HTTPException(status_code=404, detail="Board not found")
@@ -262,11 +274,11 @@ def auth_session(request: Request) -> dict[str, str | bool | None]:
 
 @app.post("/api/auth/login")
 def auth_login(payload: LoginRequest) -> JSONResponse:
-    if not verify_credentials(payload.username, payload.password, _db_path()):
+    if not verify_credentials(payload.username, payload.password, DB_PATH):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     session_token = secrets.token_urlsafe(32)
-    active_sessions[session_token] = payload.username
+    active_sessions[session_token] = (payload.username, time.time())
 
     response = JSONResponse(
         content={
@@ -294,6 +306,13 @@ def auth_logout(request: Request) -> JSONResponse:
     response = JSONResponse(content={"authenticated": False})
     response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
     return response
+
+
+@app.get("/api/ai/chat/history")
+def get_chat_history(request: Request) -> list[dict[str, str]]:
+    username = _require_authenticated_username(request)
+    messages = get_recent_chat_messages_for_username(username, db_path=DB_PATH)
+    return [{"role": m.role, "content": m.content} for m in messages]
 
 
 @app.get("/api/board")

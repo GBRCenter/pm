@@ -16,7 +16,7 @@ from pydantic import ValidationError
 from pydantic import model_validator
 
 OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
-OPENROUTER_MODEL = "openai/gpt-oss-120b"
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-120b")
 OPENROUTER_SMOKE_MAX_COMPLETION_TOKENS = 128
 OPENROUTER_BOARD_MAX_COMPLETION_TOKENS = 1400
 logger = logging.getLogger(__name__)

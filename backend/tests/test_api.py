@@ -17,7 +17,7 @@ from main import app
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     db_path = tmp_path / "app.db"
-    monkeypatch.setenv("PM_DB_PATH", str(db_path))
+    monkeypatch.setattr(main, "DB_PATH", db_path)
     initialize_database(db_path)
     return TestClient(app)
 
@@ -151,6 +151,33 @@ def test_ai_smoke_test_reports_missing_key(
     assert response.status_code == 503
 
 
+def test_get_chat_history_requires_auth(client: TestClient) -> None:
+    response = client.get("/api/ai/chat/history")
+    assert response.status_code == 401
+
+
+def test_get_chat_history_returns_messages_in_order(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        main,
+        "run_board_chat",
+        lambda *_args, **_kwargs: parse_board_response(
+            '{"assistant_message": "History response.", "operations": []}'
+        ),
+    )
+    _login(client)
+    client.post("/api/ai/chat", json={"message": "History test message"})
+
+    response = client.get("/api/ai/chat/history")
+    assert response.status_code == 200
+    messages = response.json()
+    assert len(messages) == 2
+    assert messages[0] == {"role": "user", "content": "History test message"}
+    assert messages[1] == {"role": "assistant", "content": "History response."}
+
+
 def test_ai_chat_requires_auth(client: TestClient) -> None:
     response = client.post("/api/ai/chat", json={"message": "Add a card"})
     assert response.status_code == 401
@@ -175,7 +202,7 @@ def test_ai_chat_persists_no_op_chat_messages(
     assert response.json()["assistant_message"] == "No changes needed."
     assert response.json()["operations"] == []
 
-    messages = get_recent_chat_messages_for_username("user", db_path=main._db_path())
+    messages = get_recent_chat_messages_for_username("user", db_path=main.DB_PATH)
     assert [(message.role, message.content) for message in messages] == [
         ("user", "What is next?"),
         ("assistant", "No changes needed."),
@@ -254,5 +281,5 @@ def test_ai_chat_rejects_invalid_operations_without_persisting_messages(
     response = client.post("/api/ai/chat", json={"message": "Move a card"})
 
     assert response.status_code == 400
-    messages = get_recent_chat_messages_for_username("user", db_path=main._db_path())
+    messages = get_recent_chat_messages_for_username("user", db_path=main.DB_PATH)
     assert messages == []

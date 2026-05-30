@@ -5,6 +5,11 @@ export type SessionResponse = {
   username: string | null;
 };
 
+export type ChatHistoryMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 export type AiOperation = {
   type: string;
   card_id?: string;
@@ -163,4 +168,9 @@ export const sendAiChatMessage = (message: string) =>
     method: "POST",
     headers: jsonHeaders,
     body: { message },
+  });
+
+export const getChatHistory = () =>
+  requestJson<ChatHistoryMessage[]>("/api/ai/chat/history", {
+    method: "GET",
   });
