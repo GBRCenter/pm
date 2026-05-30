@@ -190,6 +190,31 @@ export const KanbanBoard = () => {
     }
   };
 
+  const handleEditCard = (cardId: string, changes: { title?: string; details?: string }) => {
+    if (!board) {
+      return;
+    }
+
+    const previousBoard = board;
+    setBoard({
+      ...board,
+      cards: {
+        ...board.cards,
+        [cardId]: { ...board.cards[cardId], ...changes },
+      },
+    });
+    setIsSaving(true);
+    setErrorMessage(null);
+
+    void updateCard(cardId, changes)
+      .then(setBoard)
+      .catch(() => {
+        setBoard(previousBoard);
+        setErrorMessage("Could not update the card.");
+      })
+      .finally(() => setIsSaving(false));
+  };
+
   const handleDeleteCard = (cardId: string) => {
     if (!board) {
       return;
@@ -245,8 +270,8 @@ export const KanbanBoard = () => {
       <div className="pointer-events-none absolute left-0 top-0 h-[420px] w-[420px] -translate-x-1/3 -translate-y-1/3 rounded-full bg-[radial-gradient(circle,_rgba(32,157,215,0.25)_0%,_rgba(32,157,215,0.05)_55%,_transparent_70%)]" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-[520px] w-[520px] translate-x-1/4 translate-y-1/4 rounded-full bg-[radial-gradient(circle,_rgba(117,57,145,0.18)_0%,_rgba(117,57,145,0.05)_55%,_transparent_75%)]" />
 
-      <main className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col gap-10 px-6 pb-16 pt-12">
-        <header className="flex flex-col gap-6 rounded-[32px] border border-[var(--stroke)] bg-white/80 p-8 shadow-[var(--shadow)] backdrop-blur">
+      <main className="relative mx-auto flex h-screen max-w-[1500px] flex-col gap-3 overflow-hidden px-6 pb-2 pt-4">
+        <header className="shrink-0 flex flex-col gap-4 rounded-[32px] border border-[var(--stroke)] bg-white/80 p-6 shadow-[var(--shadow)] backdrop-blur">
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--gray-text)]">
@@ -297,7 +322,7 @@ export const KanbanBoard = () => {
           </div>
         </header>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-h-0 flex-1 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           <DndContext
             sensors={sensors}
             collisionDetection={collisionDetection}
@@ -305,8 +330,8 @@ export const KanbanBoard = () => {
             onDragEnd={handleDragEnd}
             autoScroll={{ threshold: { x: 0, y: 0.2 } }}
           >
-            <div className="overflow-x-auto pb-2">
-            <section className="flex gap-6">
+            <div className="h-full overflow-x-auto pb-2">
+            <section className="flex h-full gap-6">
               {board.columns.map((column) => (
                 <KanbanColumn
                   key={column.id}
@@ -317,6 +342,7 @@ export const KanbanBoard = () => {
                   onRename={handleRenameColumn}
                   onAddCard={handleAddCard}
                   onDeleteCard={handleDeleteCard}
+                  onEditCard={handleEditCard}
                 />
               ))}
             </section>

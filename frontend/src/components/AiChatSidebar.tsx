@@ -91,7 +91,7 @@ export const AiChatSidebar = ({ onBoardUpdated }: AiChatSidebarProps) => {
 
   return (
     <aside
-      className="sticky top-12 flex max-h-[calc(100vh-5rem)] self-start flex-col rounded-3xl border border-[var(--stroke)] bg-white p-4 shadow-[var(--shadow)]"
+      className="flex h-full flex-col rounded-3xl border border-[var(--stroke)] bg-white p-4 shadow-[var(--shadow)]"
       aria-label="AI chat"
     >
       <div className="border-b border-[var(--stroke)] pb-4">
